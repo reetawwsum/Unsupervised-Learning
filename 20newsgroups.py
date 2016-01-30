@@ -3,10 +3,12 @@
 Playing with 20newsgroups dataset
 =================================
 Instead of using any predefined function to download the ready made features, I'm converting the raw data to get the features.
-Using joblib library, I'm saving my model to hard drive in order to save time to predict in future.
+Using TfidfVectorizer along with Stemmer from NLTK for feature extraction
+Using joblib library, I'm saving my vectorizer and model to hard drive in order to save time to predict in future.
 Finally, I'm using similiarity measure to return top post related to new post.
-
 '''
+
+print __doc__
 
 import os
 import numpy as np
@@ -14,6 +16,7 @@ import scipy as sp
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from sklearn.externals import joblib
+import nltk.stem
 
 DIR = 'datasets'
 dataset_name = '/20_newsgroups'
@@ -27,8 +30,21 @@ for group in newsgroups:
 	if os.path.isdir(group_path):
 		newsgroups_files_content += [open(os.path.join(group_path, f)).read() for f in os.listdir(group_path)]
 
-vectorizer = TfidfVectorizer(encoding='latin-1', stop_words='english')
-data = vectorizer.fit_transform(newsgroups_files_content)
+english_stemmer = nltk.stem.SnowballStemmer('english')
+
+class StemmedTfidfVectorizer(TfidfVectorizer):
+	def build_analyzer(self):
+		analyzer = super(TfidfVectorizer, self).build_analyzer()
+		return lambda doc: (english_stemmer.stem(w) for w in analyzer(doc))
+
+vectorizer = StemmedTfidfVectorizer(encoding='latin-1', stop_words='english')
+vectorizer.fit(newsgroups_files_content)
+
+joblib.dump(vectorizer, DIR+dataset_name+'_vectorizer.pkl')
+
+# vectorizer = joblib.load(DIR+dataset_name+'_vectorizer.pkl')
+
+data = vectorizer.transform(newsgroups_files_content)
 
 number_of_clusters = 50
 
